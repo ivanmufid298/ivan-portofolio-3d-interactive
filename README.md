@@ -16,7 +16,7 @@ The website loads the actual exported `assets/garden.glb`. After editing the Ble
 
 ## Controls
 
-- Scroll to walk from the entrance across the bridge, past the koi pond, toward the temple. On phones, swipe vertically over the garden or use chapter buttons.
+- Each wheel gesture or vertical swipe selects exactly one composed viewpoint: torii, bridge, pond, temple. A 1.8-second quintic eased transition moves the camera between shots, with an elevated arc to keep clear of foreground objects. Trackpad momentum cannot skip several viewpoints. On phones, swipe over the garden or use chapter buttons.
 - Arrow keys / Page Up / Page Down navigate chapters; Home / End jump to endpoints. Navigation links and the four route markers also work.
 - Pause animation stops falling petals, koi, ripples, water shimmer, and the cat's tail. Reduced-motion preference pauses ambient animation and makes camera navigation immediate.
 - Enjoy the garden hides the content overlay; the same control restores it.
@@ -27,8 +27,10 @@ The portfolio text and navigation remain usable if WebGL fails. Animation sleeps
 
 ## Scene details
 
-Six swimming koi, notched lily pads and layered lotus blossoms, a cream cat with whiskers and a moving tail, bamboo window shades with pull cords, shoji latticework, stone steps, bamboo, fallen petals, instanced airborne sakura, expanding pond ripples, water shimmer, soft shadows, distant mountains, and night lanterns.
+Six smoothly modeled koi with integrated color patches, directional swimming and tail movement; notched lily pads and layered lotus blossoms; a walking four-legged cat with whiskers and a moving tail; a bamboo shishi-odoshi fountain with a stone basin, rocking tube and flowing water; bamboo window shades with pull cords; shoji latticework; connected gravel paths and bridge abutments; varied rounded river stones, shrubs and green trees; falling sakura; pond ripples and water shimmer; soft shadows and distant hills.
 
-The Blender timeline (frames 1–240) includes editable koi, cat-tail and falling-petal animation previews. GLB exports static geometry, and `scene.js` animates named roots in the browser. `journey.js` owns navigation; `journey.css` owns the fixed viewport layout.
+The sun, moon, clouds and stars are world-space objects, never camera children or fixed HTML overlays. Day shows sun and moving clouds; night shows moon, a surrounding starfield and lantern light. Organic meshes use smooth normals and additional geometry, and woodwork has softened bevels.
+
+The Blender timeline (frames 1–240) includes editable koi, cat walking/legs/tail, fountain and falling-petal animation previews. Four named cameras and timeline markers preserve the composed viewpoints. GLB exports static geometry, and `scene.js` animates named roots in the browser. `journey.js` owns navigation; `journey.css` owns the fixed viewport layout. Bump the model URL version in `scene.js` when changing the GLB so returning visitors receive the latest model.
 
 Three.js 0.170.0 is vendored under `vendor/` (MIT license). Google Fonts: DM Sans and Manrope, with system fallbacks. No client confidential screenshots, source code, phone number, or full resume PDF is published.

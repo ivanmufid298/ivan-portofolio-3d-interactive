@@ -14,20 +14,35 @@ pinks=[mat('Sakura '+str(i),c) for i,c in enumerate([(.91,.45,.52),(.98,.64,.65)
 def finish(o,name,material):
  o.name=name; o.data.materials.append(material); return o
 def cube(name,loc,scale,material):
- bpy.ops.mesh.primitive_cube_add(size=1,location=loc); o=bpy.context.object; o.scale=scale; bpy.ops.object.transform_apply(location=False,rotation=False,scale=True); return finish(o,name,material)
+ bpy.ops.mesh.primitive_cube_add(size=1,location=loc); o=bpy.context.object; o.scale=scale; bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+ if min(scale)>.045:
+  mod=o.modifiers.new('Soft crafted edges','BEVEL');mod.width=min(.045,min(scale)*.15);mod.segments=3
+  bpy.ops.object.modifier_apply(modifier=mod.name)
+ return finish(o,name,material)
 def ico(name,loc,scale,material,sub=1):
- bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=sub,radius=1,location=loc); o=bpy.context.object; o.scale=scale; return finish(o,name,material)
+ bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=max(2,sub+1),radius=1,location=loc); o=bpy.context.object; o.scale=scale
+ for p in o.data.polygons:p.use_smooth=True
+ return finish(o,name,material)
 def beam(name,a,b,r,material):
- d=Vector(b)-Vector(a); bpy.ops.mesh.primitive_cylinder_add(vertices=8,radius=r,depth=d.length,location=(Vector(a)+Vector(b))/2); o=bpy.context.object; o.rotation_euler=d.to_track_quat('Z','Y').to_euler(); return finish(o,name,material)
+ d=Vector(b)-Vector(a); bpy.ops.mesh.primitive_cylinder_add(vertices=16,radius=r,depth=d.length,location=(Vector(a)+Vector(b))/2); o=bpy.context.object; o.rotation_euler=d.to_track_quat('Z','Y').to_euler()
+ for p in o.data.polygons:p.use_smooth=len(p.vertices)==4
+ return finish(o,name,material)
 def mesh(name,vs,fs,material):
  m=bpy.data.meshes.new(name); m.from_pydata(vs,[],fs); m.update(); o=bpy.data.objects.new(name,m); bpy.context.collection.objects.link(o); o.data.materials.append(material); return o
 # A deliberately sculpted floating garden. Blender Z becomes web Y on export.
 ico('Floating garden foundation',(0,0,-.75),(7.6,5.8,1.6),earth,2)
-ico('Moss garden',(0,0,-.23),(7.45,5.7,.8),grass,2)
-ico('Koi pond',(0,-1.1,.59),(5.6,2.65,.06),water,3)
-for i in range(38):
- t=i/38*math.tau; x=5.65*math.cos(t); y=-1.1+2.7*math.sin(t)
- ico('Pond riverstone',(x,y,.57),(random.uniform(.2,.55),random.uniform(.2,.45),random.uniform(.18,.4)),stone)
+cube('Garden level lawn',(0,0,.16),(12,9,.48),grass)
+ico('Moss garden edge',(0,0,-.23),(7.45,5.7,.65),grass,2)
+wp=next(n for n in water.node_tree.nodes if n.type=='BSDF_PRINCIPLED');wp.inputs['Roughness'].default_value=.2;wp.inputs['Alpha'].default_value=.78
+water.surface_render_method='DITHERED'
+pondverts=[(0,-1.1,.65)]+[(2.28*math.cos(i*math.tau/96),-1.1+2.52*math.sin(i*math.tau/96),.65) for i in range(97)]
+mesh('Koi pond',pondverts,[(0,i+1,i+2) for i in range(96)],water)
+mesh('Pond submerged bed',[(x,y,.425) for x,y,z in pondverts],[(0,i+1,i+2) for i in range(96)],mat('Pond depth teal',(.10,.28,.27)))
+stones=[mat('River stone '+str(i),c) for i,c in enumerate([(.42,.45,.40),(.58,.57,.49),(.33,.39,.37),(.64,.62,.54),(.46,.50,.47)])]
+for i in range(42):
+ t=i/42*math.tau; x=2.42*math.cos(t); y=-1.1+2.66*math.sin(t)
+ if abs(y+1.2)<.8 and abs(x)>2.1:continue
+ o=ico('Pond riverstone',(x,y,.52),(random.uniform(.14,.40),random.uniform(.16,.35),random.uniform(.10,.28)),random.choice(stones));o.rotation_euler=(random.random()*.4,random.random()*.3,random.random()*6)
 # Arched cedar bridge across the pond.
 for i in range(19):
  x=-2.1+i*.235; z=.65+.6*(1-(x/2.3)**2)
@@ -61,7 +76,7 @@ for level in range(3):
  mesh('Pagoda sweeping roof',vs,fs,roof)
 beam('Pagoda spire',(px,py,4.8),(px,py,5.6),.045,glow)
 for z in [5,5.2,5.4]: ico('Spire ornament',(px,py,z),(.12,.12,.05),glow)
-for x,y,s in [(-5,2,1.1),(-1.2,3.1,1.15),(5,1.3,1),(4,-3,.8),(-4.8,-2.6,.85)]:
+for x,y,s in [(-5,2,1.1),(-1.2,3.1,1.15),(5,2.7,.95),(-5,-3,.8)]:
  beam('Sakura trunk',(x,y,.3),(x+.15,y,2.3*s),.13*s,wood)
  for j in range(7):
   t=j*math.tau/7; bx=x+math.cos(t)*.85*s; by=y+math.sin(t)*.7*s; bz=(2.2+random.uniform(0,.5))*s
@@ -73,7 +88,14 @@ for i in range(22):
 for x,y in [(-2.3,-2.7),(2.6,-2.3),(-4.5,.1),(4.4,.1)]:
  cube('Stone lantern base',(x,y,.4),(.45,.45,.25),stone); beam('Stone lantern stem',(x,y,.4),(x,y,.95),.12,stone)
  cube('Lantern glowing chamber',(x,y,1.05),(.3,.3,.35),glow); ico('Lantern cap',(x,y,1.3),(.4,.4,.18),roof)
-for i in range(13): cube('Stepping stone',(-1.8+i*.32,1.15,.4),(.27,.55,.12),stone)
+# Connected gravel paths lead from torii to the west bridge landing and from east landing to temple.
+gravel=mat('Sand garden path',(.65,.60,.46))
+routes=[((-3.6,1.8),(-3.6,-1.2)),((-3.6,-1.2),(-2.25,-1.2)),((2.25,-1.2),(3.5,-1.2)),((3.5,-1.2),(3.5,.1)),((3.5,.1),(2.5,.1))]
+for (ax,ay),(bx,by) in routes:
+ dx=bx-ax;dy=by-ay;length=math.hypot(dx,dy);o=cube('Connected gravel walkway',((ax+bx)/2,(ay+by)/2,.445),(length+.2,.95,.09),gravel);o.rotation_euler.z=math.atan2(dy,dx)
+ for j in range(max(2,int(length/.38))):
+  t=j/max(1,int(length/.38)-1);o=cube('Walkway stone',(ax+dx*t,ay+dy*t,.51),(.30,.53,.07),random.choice(stones));o.rotation_euler.z=math.atan2(dy,dx)+random.uniform(-.12,.12)
+for x in [-2.38,2.38]:cube('Bridge bank abutment',(x,-1.2,.52),(.65,1.5,.26),stone)
 # Small living details, all editable in the source file.
 ivory=mat('Koi porcelain',(.95,.88,.72)); orange=mat('Koi vermilion',(.90,.20,.055)); black=mat('Ink',(.022,.028,.025)); leaf=mat('Lotus jade',(.12,.32,.16)); gold=mat('Flower pollen',(.98,.61,.12)); catmat=mat('Cat warm cream',(.83,.62,.35)); pink=mat('Cat nose',(.62,.25,.28)); ripplemat=mat('Ripple foam',(.56,.79,.73)); bamboo=mat('Bamboo shade',(.47,.32,.16))
 # Shoji lattices, hanging bamboo blinds, eave brackets and entrance stairs.
@@ -89,7 +111,7 @@ for level in range(3):
  for dx in [-w/2,w/2]: cube('Eave bracket',(px+dx,py-d/2,z+.87),(.3,.3,.12),wood)
 for j in range(4): cube('Temple entrance step',(2.5,.08-j*.19,.52-j*.045),(1.4,.24,.14),stone)
 # Lotus leaves with a characteristic wedge, and flowers made from layered petals.
-for idx,(x,y) in enumerate([(-3.5,-1.9),(-2.7,-2.9),(1,-3.05),(3.7,-1.35),(3.4,-2.45),(-.8,-3)]):
+for idx,(x,y) in enumerate([(-1.4,-2.4),(-.7,-3.0),(1,-2.95),(1.5,-.2),(.8,.65),(-.8,-.1)]):
  verts=[(x,y,.665)]+[(x+.38*math.cos(t),y+.34*math.sin(t),.67) for t in [(.22+i/24*(math.tau-.44)) for i in range(25)]]
  mesh('Lotus leaf',verts,[(0,i,i+1) for i in range(1,25)],leaf)
  if idx%2==0:
@@ -100,31 +122,39 @@ for idx,(x,y) in enumerate([(-3.5,-1.9),(-2.7,-2.9),(1,-3.05),(3.7,-1.35),(3.4,-
 # Koi roots are preserved for swimming animation in Three.js.
 for i in range(6):
  before=set(bpy.data.objects)
- ico('Koi body',(0,0,0),(.10,.30,.07),ivory,2)
- ico('Koi head',(0,-.24,.01),(.09,.09,.065),ivory,2)
- for yy in [-.12,.06,.17]: ico('Koi red patch',(.015,yy,.052),(.075,.07,.025),orange,1)
- for x in [-.075,.075]: ico('Koi eye',(x,-.265,.045),(.015,.02,.012),black,2)
- mesh('Koi tail',[(-.14,.42,0),(0,.23,0),(.14,.42,0),(0,.36,.025)],[(0,1,3),(1,2,3)],orange)
- for s in [-1,1]: mesh('Koi fin',[(s*.07,-.08,0),(s*.19,.06,-.015),(s*.07,.08,0)],[(0,1,2)],ivory)
+ body=ico('Koi streamlined body',(0,0,0),(.105,.34,.075),ivory,2)
+ body.data.materials.append(orange);body.data.materials.append(black)
+ for p in body.data.polygons:
+  c=p.center
+  if c.z>.25 and ((-.62<c.y<-.15 and c.x>-.5) or (.15<c.y<.55 and c.x<.65)):p.material_index=1
+  if i%3==0 and c.z>.35 and c.y>.6:p.material_index=2
+ ico('Koi head',(0,-.285,0),(.086,.105,.06),ivory,2)
+ for x in [-.072,.072]:ico('Koi eye',(x,-.31,.025),(.012,.016,.012),black,2)
+ for s in [-1,1]:
+  o=ico('Koi translucent pectoral fin',(s*.11,-.07,-.018),(.09,.12,.012),ivory,2);o.rotation_euler.z=s*.6
+ tailfin=mesh('KoiTail_'+str(i),[(-.12,.18,0),(-.05,.08,.015),(0,0,0),(.05,.08,.015),(.12,.18,0),(0,.13,0)],[(0,1,2,5),(2,3,4,5)],orange);tailfin.location=(0,.27,0)
  parts=set(bpy.data.objects)-before; root=bpy.data.objects.new('Koi_'+str(i),None);bpy.context.collection.objects.link(root)
  for o in parts:o.parent=root
  a=i*math.tau/6;root.location=(math.cos(a)*3.6,-1.1+math.sin(a)*1.45,.70);root.rotation_euler.z=a
 # A watchful cat on the bank, with an animated tail pivot.
 before=set(bpy.data.objects)
-ico('Cat body',(0,0,.25),(.22,.30,.36),catmat,2);ico('Cat chest',(0,-.16,.29),(.16,.13,.24),ivory,2)
+ico('Cat body',(0,.12,.43),(.20,.36,.23),catmat,2);ico('Cat chest',(0,-.16,.43),(.16,.13,.21),ivory,2)
 ico('Cat head',(0,-.1,.65),(.235,.21,.22),catmat,2)
 for x in [-.14,.14]:
  mesh('Cat pointed ear',[(x-.085,-.12,.76),(x+.085,-.12,.76),(x,-.08,1.0),(x,.04,.77)],[(0,1,2),(1,3,2),(3,0,2)],catmat)
  mesh('Cat inner ear',[(x-.045,-.125,.79),(x+.045,-.125,.79),(x,-.09,.92)],[(0,1,2)],pink)
  ico('Cat bright eye',(x*.7,-.292,.69),(.035,.018,.045),leaf,2);ico('Cat pupil',(x*.7,-.31,.69),(.009,.008,.031),black)
- ico('Cat paw',(x,-.23,.05),(.09,.12,.07),ivory,2)
 ico('Cat muzzle',(0,-.29,.58),(.10,.05,.065),ivory,2);ico('Cat nose',(0,-.34,.62),(.025,.015,.019),pink)
 for side in [-1,1]:
  for j in range(3):beam('Cat whisker',(side*.04,-.33,.58),(side*.28,-.32,.56+j*.025),.003,ivory)
 parts=set(bpy.data.objects)-before;cat=bpy.data.objects.new('GardenCat',None);bpy.context.collection.objects.link(cat)
 for o in parts:o.parent=cat
-cat.location=(2.4,-3.65,.35);cat.rotation_euler.z=-.5
-tail=bpy.data.objects.new('CatTail',None);bpy.context.collection.objects.link(tail);tail.parent=cat;tail.location=(0,.20,.15)
+cat.location=(2.4,-4.0,.41);cat.rotation_euler.z=-.5
+for i,(x,y) in enumerate([(-.14,-.12),(.14,-.12),(-.14,.36),(.14,.36)]):
+ leg=bpy.data.objects.new('CatLeg_'+str(i),None);bpy.context.collection.objects.link(leg);leg.parent=cat;leg.location=(x,y,.42)
+ o=ico('Cat leg',(0,0,-.15),(.065,.075,.21),catmat,2);o.parent=leg
+ o=ico('Cat paw',(0,-.025,-.36),(.075,.10,.055),ivory,2);o.parent=leg
+tail=bpy.data.objects.new('CatTail',None);bpy.context.collection.objects.link(tail);tail.parent=cat;tail.location=(0,.4,.43)
 for j in range(8):
  t=j/7; o=ico('Cat tail segment',(.38*math.sin(t*2),t*.4,t*.34),(.07,.09,.07),catmat,2);o.parent=tail
 # Fallen sakura, grass tufts, garden bamboo and a small stone path.
@@ -139,19 +169,56 @@ for x,y in [(-5.8,1.1),(5.7,2.1),(-2.3,3.7)]:
    beam('Bamboo node',(xx,y,z),(xx,y,z+.03),.05,bamboo)
    ico('Bamboo leaf',(xx+.16,y,z),(.27,.055,.03),leaf)
 # Preview ripple rings are also saved to Blender; web animates their scale.
-for i,(x,y) in enumerate([(-3.2,-.6),(.3,-2.6),(3.5,-1.5),(-1.3,-3.0),(1.5,-2.6)]):
+for i,(x,y) in enumerate([(-1.3,-.6),(.3,-2.6),(1.5,-1.5),(-1.3,-2.8),(1.5,-2.6)]):
  vs=[]
  for j in range(48):
   a=j/48*math.tau
   for r in [.27,.28]:vs.append((r*math.cos(a),r*math.sin(a),0))
  o=mesh('Ripple_'+str(i),vs,[(2*j,2*j+1,(2*j+3)%96,(2*j+2)%96) for j in range(48)],ripplemat);o.location=(x,y,.665)
+# Lush green trees and irregular banks balance the sakura canopy.
+greens=[mat('Evergreen '+str(i),c) for i,c in enumerate([(.10,.27,.18),(.17,.36,.21),(.29,.43,.23),(.23,.38,.28)])]
+for x,y,s in [(5,0,1),(-5.4,.2,.8),(4.4,3.8,1.1),(-3.7,3.5,.9)]:
+ beam('Green tree trunk',(x,y,.4),(x,y,2.0*s),.12,wood)
+ for j in range(8):
+  a=j*2.4;ico('Green tree canopy',(x+math.cos(a)*.45*s,y+math.sin(a)*.4*s,(1.8+j*.075)*s),(.65*s,.60*s,.55*s),greens[j%4],2)
+for i in range(28):
+ a=i*math.tau/28;x=3.2*math.cos(a);y=-1.1+3.25*math.sin(a)
+ if abs(y+1.2)<.9 or (x>1 and y>0):continue
+ ico('Bank shrub',(x,y,.57),(random.uniform(.25,.50),random.uniform(.25,.4),random.uniform(.22,.5)),random.choice(greens),2)
+ for j in range(3):ico('Shrub small leaf mass',(x+random.uniform(-.25,.25),y+random.uniform(-.2,.2),.78),(.15,.16,.2),random.choice(greens),1)
+# Japanese bamboo water feature: stone basin, hollow spout and rocking shishi-odoshi.
+fx,fy=2.95,-2.75
+ico('Fountain foundation',(fx,fy,.48),(.72,.60,.16),stones[2],2)
+bpy.ops.mesh.primitive_torus_add(major_segments=48,minor_segments=12,location=(fx,fy,.72),major_radius=.42,minor_radius=.13);finish(bpy.context.object,'Tsukubai stone basin',stones[1])
+ico('Fountain basin water',(fx,fy,.70),(.39,.39,.025),water,2)
+for x in [fx-.22,fx+.22]:beam('Fountain bamboo support',(x,fy+.3,.45),(x,fy+.3,1.55),.065,bamboo)
+beam('Fountain bamboo upright',(fx,fy+.48,.45),(fx,fy+.48,1.9),.085,bamboo)
+beam('Fountain bamboo spout',(fx,fy+.48,1.85),(fx,fy,1.85),.075,bamboo)
+ico('Bamboo hollow mouth',(fx,fy-.005,1.85),(.052,.013,.052),black,2)
+beam('FountainStream',(fx,fy,1.80),(fx,fy,1.17),.016,water)
+pivot=bpy.data.objects.new('BambooRocker',None);bpy.context.collection.objects.link(pivot);pivot.location=(fx,fy,1.13)
+o=beam('Rocking bamboo tube',(0,-.32,0),(0,.38,0),.095,bamboo);o.parent=pivot
+o=ico('Bamboo receiver hollow',(0,-.326,0),(.071,.012,.071),black,2);o.parent=pivot
+beam('Fountain outlet trickle',(fx,fy-.32,1.12),(fx,fy-.32,.72),.012,water)
+# Sky objects are world-space geometry. They are never parented to the camera.
+sunmat=mat('Sun warm glow',(1,.75,.35),1.5);moonmat=mat('Moon ivory glow',(.77,.87,1),1.1)
+ico('SkySun',(-6,20,6.6),(1.1,1.1,1.1),sunmat,3)
+ico('SkyMoon',(-6,20,6.6),(.8,.8,.8),moonmat,3)
+cloudmat=mat('Cloud soft white',(.92,.95,.90))
+for i,(x,y,z) in enumerate([(-11,15,7),(1,18,8),(12,15,7),(-18,7,8)]):
+ for j in range(5):ico('SkyCloud_'+str(i),(x+j*.7,y+math.sin(j)*.4,z+math.sin(j*.7)*.3),(1.3,.65,.5),cloudmat,2)
 # Preview animation is editable in Blender too. Runtime uses its own lightweight animation.
 for i in range(6):
  root=bpy.data.objects.get('Koi_'+str(i))
  for frame in range(1,242,20):
   a=i*math.tau/6+(frame-1)/240*math.tau
-  root.location=(math.cos(a)*(3.0+i*.12),-1.1-math.sin(a)*(1.55+i*.025),.70)
-  root.rotation_euler.z=a;root.keyframe_insert(data_path='location',frame=frame);root.keyframe_insert(data_path='rotation_euler',frame=frame)
+  rx=1.25+i*.09;ry=1.5+i*.09;root.location=(math.cos(a)*rx,-1.1-math.sin(a)*ry,.58)
+  root.rotation_euler.z=math.atan2(-rx*math.sin(a),ry*math.cos(a));root.keyframe_insert(data_path='location',frame=frame);root.keyframe_insert(data_path='rotation_euler',frame=frame)
+for frame in range(1,242,10):
+ a=(frame-1)/240*math.tau;cat.location=(2.8*math.sin(a),-4.1+.12*math.cos(a),.43);cat.rotation_euler.z=math.atan2(2.8*math.cos(a),.12*math.sin(a));cat.keyframe_insert(data_path='location',frame=frame);cat.keyframe_insert(data_path='rotation_euler',frame=frame)
+ for i in range(4):
+  leg=bpy.data.objects.get('CatLeg_'+str(i));leg.rotation_euler.x=math.sin(frame*.4+(0 if i in [0,3] else math.pi))*.35;leg.keyframe_insert(data_path='rotation_euler',frame=frame)
+ pivot.rotation_euler.x=max(0,math.sin(frame*.03))*.45;pivot.keyframe_insert(data_path='rotation_euler',frame=frame)
 for frame in range(1,242,10):
  tail.rotation_euler.y=math.sin(frame*.12)*.2;tail.keyframe_insert(data_path='rotation_euler',frame=frame)
 for i in range(36):
@@ -165,6 +232,8 @@ bpy.ops.object.light_add(type='AREA', location=(-3,-4,10)); bpy.context.object.d
 bpy.ops.object.camera_add(location=(11,-16,12)); cam=bpy.context.object; cam.rotation_euler=(Vector((0,0,1))-cam.location).to_track_quat('-Z','Y').to_euler(); cam.data.type='ORTHO'; cam.data.ortho_scale=19
 sc=bpy.context.scene; sc.camera=cam; sc.world.color=(.35,.35,.35); sc.render.resolution_x=1500; sc.render.resolution_y=1200; sc.render.resolution_percentage=100
 sc['README']='Ivan Digital Garden. Editable original meshes. Export assets/garden.glb after edits. Web day/night lighting lives in scene.js.'
+for i,(name,pos,aim) in enumerate([('Torii',(-2.6,4.4,9),(-3.6,1.85,-.8)),('Bridge',(6.4,5.7,8.8),(0,1.1,1.2)),('Pond',(3.8,6.8,6.8),(.4,.65,1.65)),('Temple',(8.5,5.4,7.4),(2.5,2.6,-1.6))]):
+ bpy.ops.object.camera_add(location=(pos[0],-pos[2],pos[1]));shot=bpy.context.object;shot.name='View_'+str(i+1)+'_'+name;shot.data.lens=45;shot.rotation_euler=(Vector((aim[0],-aim[2],aim[1]))-shot.location).to_track_quat('-Z','Y').to_euler();marker=sc.timeline_markers.new(name,frame=1+i*60);marker.camera=shot
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT,'blender','Ivan-Japanese-Garden.blend'))
 bpy.ops.export_scene.gltf(filepath=os.path.join(ROOT,'assets','garden.glb'),export_format='GLB',export_cameras=False,export_lights=False,export_animations=False)
 print('GARDEN_SAVED',len(sc.objects))
