@@ -1,0 +1,11 @@
+@media (min-width:651px) and (max-width:1000px){
+ body .hero{display:block;min-height:1100px;padding-top:55px}
+ body .hero-copy{max-width:560px}
+ body h1{font-size:54px;max-width:550px}
+ body .intro{max-width:420px}
+ body .signature{display:none}
+ body .garden-wrap{margin:12px 0 0;min-height:510px}
+ body #garden{height:490px}
+ body .garden-label{bottom:25px;left:5%;right:5%}
+ body .scene-tools{bottom:-5px;left:5%;right:5%}
+}
